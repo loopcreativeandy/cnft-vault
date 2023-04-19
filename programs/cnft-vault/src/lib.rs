@@ -4,6 +4,7 @@ use spl_account_compression::{
     program::SplAccountCompression, Noop,
 };
 use mpl_bubblegum::{state::TreeConfig};
+use hex;
 
 declare_id!("CNftyK7T8udPwYRzZUMWzbh79rKrz9a5GwV2wv7iEHpk");
 
@@ -21,7 +22,7 @@ pub mod cnft_vault {
 
     use super::*;
 
-    pub fn withdraw_cnft(ctx: Context<Withdraw>,
+    pub fn withdraw_cnft<'info>(ctx: Context<'_, '_, '_, 'info, Withdraw<'info>>,
         root: [u8; 32],
         data_hash: [u8; 32],
         creator_hash: [u8; 32],
@@ -66,16 +67,11 @@ pub mod cnft_vault {
             AccountMeta::new_readonly(ctx.accounts.compression_program.key(), false),
             AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
         ];
+
+        let discriminator = hex::decode("a334c8e78c0345ba").expect("hex decode fail"); // first 8 bytes of SHA256("global:transfer")
         
-        // add "accounts" (hashes) that make up the merkle proof
-        for acc in ctx.remaining_accounts.iter() {
-            accounts.push(AccountMeta::new_readonly(acc.key(), false));
-            // account_infos.push(acc.to_account_info());
-        }
-        
-        let mut data: Vec<u8> = vec![
-            //root, data_hash, creator_hash, nonce, index
-        ];
+        let mut data: Vec<u8> = vec![];
+        data.extend(discriminator);
         data.extend(root);
         data.extend(data_hash);
         data.extend(creator_hash);
@@ -91,12 +87,15 @@ pub mod cnft_vault {
             ctx.accounts.log_wrapper.to_account_info(),
             ctx.accounts.compression_program.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
-            ctx.remaining_accounts[0].to_account_info(),
-            ctx.remaining_accounts[1].to_account_info(),
         ];
-        // account_infos.extend(ctx.remaining_accounts.iter().map(|&a| a.to_account_info()).collect::<Vec<AccountInfo>>());
         
-        msg!("manual cpi call ");
+        // add "accounts" (hashes) that make up the merkle proof
+        for acc in ctx.remaining_accounts.iter() {
+            accounts.push(AccountMeta::new_readonly(acc.key(), false));
+            account_infos.push(acc.to_account_info());
+        }
+
+        msg!("manual cpi call");
         solana_program::program::invoke_signed(
         & solana_program::instruction::Instruction {
             program_id: ctx.accounts.bubblegum_program.key(),
@@ -104,18 +103,6 @@ pub mod cnft_vault {
             data: data,
         },
         &account_infos[..],
-        // &[
-        //     ctx.accounts.tree_authority.to_account_info().clone(),
-        //     ctx.accounts.leaf_owner.to_account_info().clone(),
-        //     ctx.accounts.leaf_delegate.to_account_info().clone(),
-        //     ctx.accounts.new_leaf_owner.to_account_info().clone(),
-        //     ctx.accounts.merkle_tree.to_account_info().clone(),
-        //     ctx.accounts.log_wrapper.to_account_info().clone(),
-        //     ctx.accounts.compression_program.to_account_info().clone(),
-        //     ctx.accounts.system_program.to_account_info().clone(),
-        //     ctx.remaining_accounts[0].to_account_info().clone(),
-        //     ctx.remaining_accounts[1].to_account_info().clone(),
-        // ],
         &[&[b"cNFT-vault", &[*ctx.bumps.get("leaf_owner").unwrap()]]])
         .map_err(Into::into)
 

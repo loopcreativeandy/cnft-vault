@@ -1,5 +1,4 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
 import { CnftVault } from "../target/types/cnft_vault";
 import { loadWalletKey, decode, mapProof } from "./utils";
 import { IDL } from "../target/types/cnft_vault"
@@ -9,11 +8,11 @@ import { getAsset, getAssetProof } from "./readAPI";
 
 
 const c = new anchor.web3.Connection("https://api.devnet.solana.com");
-const kp = loadWalletKey("../../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
+const kp = loadWalletKey("../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
 const w = new anchor.Wallet(kp);
 const provider = new anchor.AnchorProvider(c, w, {});
 const programID = new anchor.web3.PublicKey("CNftyK7T8udPwYRzZUMWzbh79rKrz9a5GwV2wv7iEHpk")
-const program = new Program<CnftVault>(IDL, programID, provider);
+const program = new anchor.Program<CnftVault>(IDL, programID, provider);
 async function main(){
     const [vaultPDA, _bump] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("cNFT-vault", "utf8")],
@@ -39,7 +38,7 @@ async function main(){
     const root = decode(proof.root);
     const dataHash = decode(asset.compression.data_hash);
     const creatorHash = decode(asset.compression.creator_hash);
-    const nonce = asset.compression.leaf_id;
+    const nonce = new anchor.BN(asset.compression.leaf_id);
     const index = asset.compression.leaf_id;
 
     const tx = await program.methods.withdrawCnft(root, dataHash, creatorHash, nonce, index)
@@ -54,6 +53,7 @@ async function main(){
         logWrapper: SPL_NOOP_PROGRAM_ID,
         systemProgram: anchor.web3.SystemProgram.programId
     })
+    .remainingAccounts(proofPathAsAccounts)
     .rpc();
     console.log(tx);
 };
