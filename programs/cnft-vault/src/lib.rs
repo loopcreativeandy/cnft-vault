@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
-use solana_program::{pubkey, pubkey::Pubkey};
+use solana_program::{pubkey::Pubkey};
 use spl_account_compression::{
     program::SplAccountCompression, Noop,
 };
 use mpl_bubblegum::{state::TreeConfig};
-use hex;
 
 declare_id!("CNftyK7T8udPwYRzZUMWzbh79rKrz9a5GwV2wv7iEHpk");
 
@@ -28,16 +27,7 @@ pub mod cnft_vault {
         creator_hash: [u8; 32],
         nonce: u64,
         index: u32,) -> Result<()> {
-        // let's imagine this data was stored inside an account
-        let merkle_tree = pubkey!("trezdkTFPKyj4gE9LAJYPpxn8AYVCvM7Mc4JkTb9X5B");
-        let leaf_index = 1u32;
-        msg!("attempting to send nft {} from tree {}", leaf_index, merkle_tree);
-        
-
-        // // assertions
-        // assert_pubkey_equal(&merkle_tree, ctx.accounts.merkle_tree.key, ProgramError::Custom(MyError::UnexpectedTree))?;
-        // require!(index == leaf_index,MyError::UnexpectedIndex); // todo make them nicer
-
+        msg!("attempting to send nft {} from tree {}", index, ctx.accounts.merkle_tree.key());
 
         // CPI to bubblegum
         // //attempt 1
@@ -68,10 +58,12 @@ pub mod cnft_vault {
             AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
         ];
 
-        let discriminator = hex::decode("a334c8e78c0345ba").expect("hex decode fail"); // first 8 bytes of SHA256("global:transfer")
+        // first 8 bytes of SHA256("global:transfer")   
+        let transfer_discriminator: [u8;8] = [163, 52, 200, 231, 140, 3, 69, 186];//hex::decode("a334c8e78c0345ba").expect("hex decode fail"); 
+        //msg!("{:?}", transfer_discriminator);
         
         let mut data: Vec<u8> = vec![];
-        data.extend(discriminator);
+        data.extend(transfer_discriminator);
         data.extend(root);
         data.extend(data_hash);
         data.extend(creator_hash);
@@ -109,8 +101,6 @@ pub mod cnft_vault {
         
     }
 
-
-
     
     pub fn withdraw_two_cnfts<'info>(ctx: Context<'_, '_, '_, 'info, WithdrawTwo<'info>>,
         root1: [u8; 32],
@@ -124,7 +114,7 @@ pub mod cnft_vault {
         creator_hash2: [u8; 32],
         nonce2: u64,
         index2: u32,
-        proof_2_length: u8 // we don't actually need this (proof_2_length = remaining_accounts_len - proof_1_length)
+        _proof_2_length: u8 // we don't actually need this (proof_2_length = remaining_accounts_len - proof_1_length)
     ) -> Result<()> {
         let merkle_tree1 = ctx.accounts.merkle_tree1.key();
         let merkle_tree2 = ctx.accounts.merkle_tree2.key();
@@ -155,17 +145,17 @@ pub mod cnft_vault {
             AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
         ];
 
-        let discriminator = hex::decode("a334c8e78c0345ba").expect("hex decode fail"); // first 8 bytes of SHA256("global:transfer")
-        
+        let transfer_discriminator: [u8;8] = [163, 52, 200, 231, 140, 3, 69, 186];
+
         let mut data1: Vec<u8> = vec![];
-        data1.extend(&discriminator);
+        data1.extend(&transfer_discriminator);
         data1.extend(root1);
         data1.extend(data_hash1);
         data1.extend(creator_hash1);
         data1.extend(nonce1.to_le_bytes());
         data1.extend(index1.to_le_bytes());
         let mut data2: Vec<u8> = vec![];
-        data2.extend(&discriminator);
+        data2.extend(&transfer_discriminator);
         data2.extend(root2);
         data2.extend(data_hash2);
         data2.extend(creator_hash2);
@@ -303,11 +293,3 @@ pub struct WithdrawTwo<'info> {
     pub system_program: Program<'info, System>,
 }
 
-
-#[error_code]
-pub enum MyError {
-    #[msg("Wrong tree")]
-    UnexpectedTree,
-    #[msg("Wrong index")]
-    UnexpectedIndex,
-}
