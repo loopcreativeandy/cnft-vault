@@ -8,10 +8,10 @@ import { getAsset, getAssetProof } from "./readAPI";
 import { AccountMeta, AddressLookupTableProgram, PublicKey, SystemProgram, Transaction, TransactionMessage, VersionedTransaction, sendAndConfirmTransaction } from "@solana/web3.js";
 
 
-const c = new anchor.web3.Connection("https://api.devnet.solana.com");
-const kp = loadWalletKey("../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
-const w = new anchor.Wallet(kp);
-const provider = new anchor.AnchorProvider(c, w, {});
+const connection = new anchor.web3.Connection("https://api.devnet.solana.com");
+const keypair = loadWalletKey("../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
+const wallet = new anchor.Wallet(keypair);
+const provider = new anchor.AnchorProvider(connection, wallet, {});
 const programID = new anchor.web3.PublicKey("CNftyK7T8udPwYRzZUMWzbh79rKrz9a5GwV2wv7iEHpk")
 const program = new anchor.Program<CnftVault>(IDL, programID, provider);
 async function main(){
@@ -77,7 +77,7 @@ async function main(){
     await extendLookupTable(lookupTable, proofPathAsAccounts1.map(acc => acc.pubkey));
     await extendLookupTable(lookupTable, proofPathAsAccounts2.map(acc => acc.pubkey));
 
-    const lookupTableAccount = await c
+    const lookupTableAccount = await connection
         .getAddressLookupTable(lookupTable)
         .then((res) => res.value);
     
@@ -89,15 +89,15 @@ async function main(){
     await new Promise(_ => setTimeout(_, 30000));
 
     const messageV0 = new TransactionMessage({
-        payerKey: kp.publicKey,
-        recentBlockhash: (await c.getLatestBlockhash()).blockhash,
+        payerKey: keypair.publicKey,
+        recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
         instructions: [ix], 
     }).compileToV0Message([lookupTableAccount]);
     
     const transactionV0 = new VersionedTransaction(messageV0);
-    transactionV0.sign([kp]);
+    transactionV0.sign([keypair]);
     
-    const txid = await c.sendTransaction(transactionV0);
+    const txid = await connection.sendTransaction(transactionV0);
     console.log(txid);
 };
 
@@ -117,8 +117,8 @@ main();
 async function extendLookupTable(lookupTableAddress: PublicKey, proofHashes: PublicKey[]){
 
     const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-        payer: kp.publicKey,
-        authority: kp.publicKey,
+        payer: keypair.publicKey,
+        authority: keypair.publicKey,
         lookupTable: lookupTableAddress,
         addresses: [
           ...proofHashes
@@ -128,26 +128,26 @@ async function extendLookupTable(lookupTableAddress: PublicKey, proofHashes: Pub
     const tx = new Transaction();
     tx.add(extendInstruction);
 
-    const sx = await sendAndConfirmTransaction(c, tx, [kp], {commitment: "finalized"});
+    const sx = await sendAndConfirmTransaction(connection, tx, [keypair], {commitment: "finalized"});
     console.log(sx);
     console.log("ALT extended!");
 }
 
 async function createLookupTable(): Promise<PublicKey>
 {
-    const slot = await c.getSlot();
+    const slot = await connection.getSlot();
 
     const [lookupTableInst, lookupTableAddress] =
     AddressLookupTableProgram.createLookupTable({
-        authority: kp.publicKey,
-        payer: kp.publicKey,
+        authority: keypair.publicKey,
+        payer: keypair.publicKey,
         recentSlot: slot,
     });
     console.log(lookupTableAddress.toBase58());
 
     const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-        payer: kp.publicKey,
-        authority: kp.publicKey,
+        payer: keypair.publicKey,
+        authority: keypair.publicKey,
         lookupTable: lookupTableAddress,
         addresses: [
           programID,
@@ -162,7 +162,7 @@ async function createLookupTable(): Promise<PublicKey>
     const tx = new Transaction();
     tx.add(lookupTableInst).add(extendInstruction);
 
-    const sx = await sendAndConfirmTransaction(c, tx, [kp], {commitment: "finalized"});
+    const sx = await sendAndConfirmTransaction(connection, tx, [keypair], {commitment: "finalized"});
     console.log(sx);
     console.log("ALT created");
     

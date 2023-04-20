@@ -8,10 +8,10 @@ import { getAsset, getAssetProof } from "./readAPI";
 import { AccountMeta } from "@solana/web3.js";
 
 
-const c = new anchor.web3.Connection("https://api.devnet.solana.com");
-const kp = loadWalletKey("../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
-const w = new anchor.Wallet(kp);
-const provider = new anchor.AnchorProvider(c, w, {});
+const connection = new anchor.web3.Connection("https://api.devnet.solana.com");
+const keypair = loadWalletKey("../AndYPfCmbSSHpe2yukLXDT9N29twa7kJDk3yrRMQW7SN.json");
+const wallet = new anchor.Wallet(keypair);
+const provider = new anchor.AnchorProvider(connection, wallet, {});
 const programID = new anchor.web3.PublicKey("CNftyK7T8udPwYRzZUMWzbh79rKrz9a5GwV2wv7iEHpk")
 const program = new anchor.Program<CnftVault>(IDL, programID, provider);
 async function main(){
